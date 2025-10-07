@@ -7,6 +7,11 @@ const UserSchema = new monngoose.Schema({
         type: String,
         required: [true, 'Please add a name'],
     },
+    telephone: {
+        type: String,
+        required: [true, 'Please add a telephone number'],
+        maxlength: [10, 'Telephone number can not be more than 10 characters']
+    },
     email: {
         type: String,
         required: [true, 'Please add an email'],
