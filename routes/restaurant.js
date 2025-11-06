@@ -5,12 +5,12 @@ const {
     createRestaurants,
     updateRestaurants,
     deleteRestaurants,
-} = require("../controllers/restaurants")
+} = require("../controllers/restaurant")
 
-const appointmentRouter = require("./appointments")
+const reservationRouter = require("./reservation")
 
 const router = express.Router()
-router.use("/:restaurantId/appointments", appointmentRouter)
+router.use("/:restaurantId/reservations", reservationRouter)
 
 const { protect, authorize } = require("../middleware/auth")
 router

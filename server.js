@@ -10,14 +10,14 @@ connectDB()
 
 const app = express()
 app.use(express.json()) // parse JSON body
-const restaurants = require("./routes/restaurants")
-const appointments = require("./routes/appointments")
+const restaurants = require("./routes/restaurant.js")
+const reservations = require("./routes/reservation.js")
 const auth = require("./routes/auth")
 
 // Mount routers
 app.use("/api/v1/auth", auth)
 app.use("/api/v1/restaurants", restaurants)
-app.use("/api/v1/appointments", appointments)
+app.use("/api/v1/reservations", reservations)
 app.use(cookieParser())
 
 const PORT = process.env.PORT || 5000
