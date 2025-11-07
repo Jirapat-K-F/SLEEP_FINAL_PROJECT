@@ -18,7 +18,7 @@ exports.getReservations = async (req, res, next) => {
         //General users can see only their Reservations
         if (req.user.role !== "admin") {
             query = Reservation.find({ user: req.user.id }).populate({
-                path: "Restaurant",
+                path: "restaurant",
                 select: "name province tel",
             })
         } else {
@@ -26,24 +26,24 @@ exports.getReservations = async (req, res, next) => {
             if (req.params.RestaurantId) {
                 // เปลี่ยนจากการค้นหาทั้งหมดเป็นค้นหาเฉพาะ Restaurant ที่ระบุ
                 query = Reservation.find({
-                    Restaurant: req.params.RestaurantId,
+                    restaurant: req.params.RestaurantId,
                 }).populate({
-                    path: "Restaurant",
+                    path: "restaurant",
                     select: "name province tel",
                 })
             } else {
                 query = Reservation.find().populate({
-                    path: "Restaurant",
+                    path: "restaurant",
                     select: "name province tel",
                 })
             }
         }
 
-        const Reservations = await query
+        const reservations = await query
         res.status(200).json({
             success: true,
-            count: Reservations.length,
-            data: Reservations,
+            count: reservations.length,
+            data: reservations,
         })
     } catch (error) {
         console.log(error)
@@ -55,16 +55,16 @@ exports.getReservations = async (req, res, next) => {
 }
 exports.getReservation = async (req, res, next) => {
     try {
-        const Reservation = await Reservation.findById(req.params.id).populate({
-            path: "Restaurant",
+        const reservation = await Reservation.findById(req.params.id).populate({
+            path: "restaurant",
             select: "name province tel",
         })
-        if (!Reservation) {
+        if (!reservation) {
             return res
                 .status(400)
                 .json({ success: false, message: "No Reservation found" })
         }
-        res.status(200).json({ success: true, data: Reservation })
+        res.status(200).json({ success: true, data: reservation })
     } catch (err) {
         console.log(err)
         res.status(400).json({
@@ -77,12 +77,12 @@ exports.getReservation = async (req, res, next) => {
 exports.addReservation = async (req, res, next) => {
     try {
         req.body.user = req.user.id
-        req.body.Restaurant = req.params.RestaurantId
-        const Restaurant = await Restaurant.findById(req.body.Restaurant)
-        if (!Restaurant) {
+        req.body.resvDate = new Date()
+        const restaurant = await Restaurant.findById(req.body.restaurant)
+        if (!restaurant) {
             return res.status(400).json({
                 success: false,
-                message: "No Restaurant with the id of " + req.body.Restaurant,
+                message: "No Restaurant with the id of " + req.body.restaurant,
             })
         }
         if (!req.user) {
@@ -90,7 +90,9 @@ exports.addReservation = async (req, res, next) => {
                 .status(401)
                 .json({ success: false, message: "User not authenticated" })
         }
-        const existedReservation = await Reservation.find({ user: req.user.id })
+        const existedReservation = await Reservation.find({
+            user: req.user.id,
+        })
         if (existedReservation.length >= 3 && req.user.role !== "admin") {
             return res.status(400).json({
                 success: false,
@@ -100,15 +102,16 @@ exports.addReservation = async (req, res, next) => {
                     " has already made 3 Reservations",
             })
         }
-        if (!req.body.Restaurant) {
+        if (!req.body.restaurant) {
             return res.status(400).json({
                 success: false,
                 message:
                     "Restaurant is required. Please provide Restaurant ID in request body or URL parameter.",
             })
         }
-        const Reservation = await Reservation.create(req.body)
-        res.status(200).json({ success: true, data: Reservation })
+        // console.log(req.body)
+        const reservation = await Reservation.create(req.body)
+        res.status(200).json({ success: true, data: reservation })
     } catch (err) {
         console.log(err)
         res.status(500).json({
@@ -120,9 +123,9 @@ exports.addReservation = async (req, res, next) => {
 
 exports.updateReservation = async (req, res, next) => {
     try {
-        let Reservation = await Reservation.findById(req.params.id)
+        let reservation = await Reservation.findById(req.params.id)
         if (
-            Reservation.user.toString() !== req.user.id &&
+            reservation.user.toString() !== req.user.id &&
             req.user.role !== "admin"
         ) {
             return res.status(401).json({
@@ -133,12 +136,12 @@ exports.updateReservation = async (req, res, next) => {
                     " is not authorized to update this Reservation",
             })
         }
-        if (!Reservation) {
+        if (!reservation) {
             return res
                 .status(400)
                 .json({ success: false, message: "No Reservation found" })
         }
-        Reservation = await Reservation.findByIdAndUpdate(
+        reservation = await Reservation.findByIdAndUpdate(
             req.params.id,
             req.body,
             {
@@ -147,7 +150,7 @@ exports.updateReservation = async (req, res, next) => {
             }
         )
 
-        Reservation = await Reservation.findByIdAndUpdate(
+        reservation = await Reservation.findByIdAndUpdate(
             req.params.id,
             req.body,
             {

@@ -15,7 +15,7 @@ exports.getRestaurants = async (req, res, next) => {
             /\b(gt|gte|lt|lte|in)\b/g,
             (match) => `$${match}`
         )
-        query = Restaurant.find(JSON.parse(queryStr)).populate("reserves")
+        query = Restaurant.find(JSON.parse(queryStr)).populate("reservations")
         const restaurant = await Restaurant.findById(req.params.restaurantId)
         //Select Fields
         if (req.query.select) {
