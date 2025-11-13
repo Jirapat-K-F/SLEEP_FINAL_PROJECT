@@ -1,5 +1,29 @@
 const User = require("../models/User")
 
+const crypto = require("crypto")
+
+const nodemailer = require("nodemailer")
+
+// ฟังก์ชันส่งอีเมล
+async function sendEmail({ to, subject, text }) {
+    // กำหนด transport (ตัวอย่างใช้ Gmail)
+    const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+            user: process.env.EMAIL_USER, // อีเมลผู้ส่ง
+            pass: process.env.EMAIL_PASS, // รหัสผ่านแอป (App Password)
+        },
+    })
+
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to,
+        subject,
+        text,
+    }
+    await transporter.sendMail(mailOptions)
+}
+
 exports.register = async (req, res, next) => {
     try {
         console.log(req.body)
@@ -57,6 +81,66 @@ exports.register = async (req, res, next) => {
             success: false,
             message: "Server error during registration",
         })
+    }
+}
+
+// Forgot Password
+exports.forgotPassword = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ success: false, message: "No user found with that email" });
+        }
+
+        // สร้าง token
+        const resetToken = crypto.randomBytes(20).toString("hex");
+        user.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+        user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 นาที
+        await user.save({ validateBeforeSave: false });
+
+        // ส่งอีเมลจริงด้วย nodemailer
+        const resetUrl = `http://localhost:5000/api/auth/resetpassword/${resetToken}`;
+        const message = `คุณได้รับคำขอรีเซ็ตรหัสผ่าน กรุณาคลิกลิงก์นี้เพื่อรีเซ็ตรหัสผ่าน: ${resetUrl}`;
+        try {
+            await sendEmail({
+                to: user.email,
+                subject: "Password Reset Request",
+                text: message,
+            });
+            res.status(200).json({ success: true, data: "Email sent with reset link" });
+        } catch (err) {
+            // ถ้าส่งอีเมลไม่สำเร็จ ลบ token ออก
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpire = undefined;
+            await user.save({ validateBeforeSave: false });
+            return res.status(500).json({ success: false, message: "Email could not be sent" });
+        }
+    } catch (err) {
+        console.log(err.stack);
+        res.status(500).json({ success: false, message: "Server error during forgot password" });
+    }
+}
+
+// Reset Password
+exports.resetPassword = async (req, res, next) => {
+    try {
+        const resetPasswordToken = crypto.createHash("sha256").update(req.params.token).digest("hex");
+        const user = await User.findOne({
+            resetPasswordToken,
+            resetPasswordExpire: { $gt: Date.now() }
+        });
+        if (!user) {
+            return res.status(400).json({ success: false, message: "Invalid or expired token" });
+        }
+        user.password = req.body.password;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+        await user.save();
+        res.status(200).json({ success: true, message: "Password reset successful" });
+    } catch (err) {
+        console.log(err.stack);
+        res.status(500).json({ success: false, message: "Server error during reset password" });
     }
 }
 
