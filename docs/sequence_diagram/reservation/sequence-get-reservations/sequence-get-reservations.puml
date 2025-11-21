@@ -1,0 +1,48 @@
+@startuml Get All Reservations (GET)
+
+header Restaurant Reservation System Sequence Diagram
+footer Page %page% of %lastpage%
+title "Get All Reservations (GET)"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:reservations" as routerReservations
+participant "<<middleware>>\n:auth" as middlewareAuth
+participant "<<controllers>>\n:reservations" as controllersReservations
+participant "<<model>>\n:Reservation" as modelReservation
+database "<<MongoDB>>\n:reservations" as ReservationsDatabase
+
+client->server ++:req.get('/api/v1/reservations')\nAuthorization: Bearer <token>
+server->routerReservations ++:app.use('/api/v1/reservations',reservations)
+routerReservations -> middlewareAuth ++:protect()
+middlewareAuth->middlewareAuth:verify token
+alt token invalid
+    middlewareAuth->client --:401 - Not authorized
+else token valid
+    middlewareAuth->routerReservations --:next()
+    routerReservations -> controllersReservations ++:getReservations()
+    controllersReservations->controllersReservations:check user role
+    alt user is regular user
+        controllersReservations->modelReservation ++:find({user: req.user.id}).populate('restaurant')
+        modelReservation ->ReservationsDatabase ++: ReservationSchema
+        ReservationsDatabase --> modelReservation --: userReservations
+        controllersReservations <-- modelReservation --:userReservations
+        controllersReservations->client --:200 - User reservations\n{success: true, count, data}
+    else user is admin
+        alt specific restaurant requested
+            controllersReservations->modelReservation ++:find({restaurant: restaurantId}).populate('restaurant')
+            modelReservation ->ReservationsDatabase ++: ReservationSchema
+            ReservationsDatabase --> modelReservation --: restaurantReservations
+            controllersReservations <-- modelReservation --:restaurantReservations
+            controllersReservations->client --:200 - Restaurant reservations\n{success: true, count, data}
+        else all reservations requested
+            controllersReservations->modelReservation ++:find().populate('restaurant')
+            modelReservation ->ReservationsDatabase ++: ReservationSchema
+            ReservationsDatabase --> modelReservation --: allReservations
+            controllersReservations <-- modelReservation --:allReservations
+            controllersReservations->client --:200 - All reservations\n{success: true, count, data}
+        end
+    end
+end
+
+@enduml

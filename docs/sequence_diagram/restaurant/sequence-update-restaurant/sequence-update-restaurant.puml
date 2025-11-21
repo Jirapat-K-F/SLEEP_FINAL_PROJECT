@@ -1,0 +1,42 @@
+@startuml Update Restaurant (PUT)
+
+header Restaurant Reservation System Sequence Diagram
+footer Page %page% of %lastpage%
+title "Update Restaurant (PUT)"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:restaurants" as routerRestaurants
+participant "<<middleware>>\n:auth" as middlewareAuth
+participant "<<controllers>>\n:restaurants" as controllersRestaurants
+participant "<<model>>\n:Restaurant" as modelRestaurant
+database "<<MongoDB>>\n:restaurants" as RestaurantsDatabase
+
+client->server ++:req.put('/api/v1/restaurants/:id')\nAuthorization: Bearer <token>
+server->routerRestaurants ++:app.use('/api/v1/restaurants',restaurants)
+routerRestaurants -> middlewareAuth ++:protect()
+middlewareAuth->middlewareAuth:verify token
+alt token invalid
+    middlewareAuth->client --:401 - Not authorized
+else token valid
+    middlewareAuth->routerRestaurants --:next()
+    routerRestaurants -> middlewareAuth ++:authorize('admin')
+    middlewareAuth->middlewareAuth:check user role
+    alt user not admin
+        middlewareAuth->client --:403 - Not authorized (admin only)
+    else user is admin
+        middlewareAuth->routerRestaurants --:next()
+        routerRestaurants -> controllersRestaurants ++:updateRestaurants()
+        controllersRestaurants->modelRestaurant ++:findByIdAndUpdate(id, body, options)
+        modelRestaurant ->RestaurantsDatabase ++: RestaurantSchema
+        RestaurantsDatabase --> modelRestaurant --: restaurant
+        controllersRestaurants <-- modelRestaurant --:restaurant
+        alt restaurant not found
+            controllersRestaurants->client --:400 - Restaurant not found
+        else restaurant updated
+            controllersRestaurants->client --:200 - Restaurant updated\n{success: true, data: restaurant}
+        end
+    end
+end
+
+@enduml

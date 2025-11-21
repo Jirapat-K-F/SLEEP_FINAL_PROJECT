@@ -1,0 +1,57 @@
+@startuml Create Reservation (POST)
+
+header Restaurant Reservation System Sequence Diagram
+footer Page %page% of %lastpage%
+title "Create Reservation (POST)"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:reservations" as routerReservations
+participant "<<middleware>>\n:auth" as middlewareAuth
+participant "<<controllers>>\n:reservations" as controllersReservations
+participant "<<model>>\n:Restaurant" as modelRestaurant
+participant "<<model>>\n:Reservation" as modelReservation
+database "<<MongoDB>>\n:restaurants" as RestaurantsDatabase
+database "<<MongoDB>>\n:reservations" as ReservationsDatabase
+
+client->server ++:req.post('/api/v1/reservations')\nAuthorization: Bearer <token>
+server->routerReservations ++:app.use('/api/v1/reservations',reservations)
+routerReservations -> middlewareAuth ++:protect()
+middlewareAuth->middlewareAuth:verify token
+alt token invalid
+    middlewareAuth->client --:401 - Not authorized
+else token valid
+    middlewareAuth->routerReservations --:next()
+    routerReservations -> middlewareAuth ++:authorize('admin','user')
+    middlewareAuth->middlewareAuth:check user role
+    alt user not authorized
+        middlewareAuth->client --:403 - Not authorized
+    else user authorized
+        middlewareAuth->routerReservations --:next()
+        routerReservations -> controllersReservations ++:addReservation()
+        controllersReservations->controllersReservations:set req.body.user = req.user.id\nset req.body.resvDate = new Date()
+        controllersReservations->modelRestaurant ++:findById(req.body.restaurant)
+        modelRestaurant ->RestaurantsDatabase ++: RestaurantSchema
+        RestaurantsDatabase --> modelRestaurant --: restaurant
+        controllersReservations <-- modelRestaurant --:restaurant
+        alt restaurant not found
+            controllersReservations->client --:400 - Restaurant not found
+        else restaurant found
+            controllersReservations->modelReservation ++:find({user: req.user.id})
+            modelReservation ->ReservationsDatabase ++: ReservationSchema
+            ReservationsDatabase --> modelReservation --: existingReservations
+            controllersReservations <-- modelReservation --:existingReservations
+            alt user has 3+ reservations and not admin
+                controllersReservations->client --:400 - Maximum reservations reached
+            else can create reservation
+                controllersReservations->modelReservation ++:create(req.body)
+                modelReservation ->ReservationsDatabase ++: ReservationSchema
+                ReservationsDatabase --> modelReservation --: reservation
+                controllersReservations <-- modelReservation --:reservation
+                controllersReservations->client --:200 - Reservation created\n{success: true, data: reservation}
+            end
+        end
+    end
+end
+
+@enduml

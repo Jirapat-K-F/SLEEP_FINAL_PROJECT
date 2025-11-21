@@ -1,0 +1,51 @@
+@startuml Delete Reservation (DELETE)
+
+header Restaurant Reservation System Sequence Diagram
+footer Page %page% of %lastpage%
+title "Delete Reservation (DELETE)"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:reservations" as routerReservations
+participant "<<middleware>>\n:auth" as middlewareAuth
+participant "<<controllers>>\n:reservations" as controllersReservations
+participant "<<model>>\n:Reservation" as modelReservation
+database "<<MongoDB>>\n:reservations" as ReservationsDatabase
+
+client->server ++:req.delete('/api/v1/reservations/:id')\nAuthorization: Bearer <token>
+server->routerReservations ++:app.use('/api/v1/reservations',reservations)
+routerReservations -> middlewareAuth ++:protect()
+middlewareAuth->middlewareAuth:verify token
+alt token invalid
+    middlewareAuth->client --:401 - Not authorized
+else token valid
+    middlewareAuth->routerReservations --:next()
+    routerReservations -> middlewareAuth ++:authorize('admin','user')
+    middlewareAuth->middlewareAuth:check user role
+    alt user not authorized
+        middlewareAuth->client --:403 - Not authorized
+    else user authorized
+        middlewareAuth->routerReservations --:next()
+        routerReservations -> controllersReservations ++:deleteReservation()
+        controllersReservations->modelReservation ++:findById(req.params.id)
+        modelReservation ->ReservationsDatabase ++: ReservationSchema
+        ReservationsDatabase --> modelReservation --: reservation
+        controllersReservations <-- modelReservation --:reservation
+        alt reservation not found
+            controllersReservations->client --:400 - Reservation not found
+        else reservation found
+            controllersReservations->controllersReservations:check ownership\n(reservation.user === req.user.id || admin)
+            alt user not authorized to delete
+                controllersReservations->client --:401 - Not authorized to delete
+            else user authorized to delete
+                controllersReservations->modelReservation ++:deleteOne()
+                modelReservation ->ReservationsDatabase ++: ReservationSchema
+                ReservationsDatabase --> modelReservation --: success
+                controllersReservations <-- modelReservation --:success
+                controllersReservations->client --:200 - Reservation deleted\n{success: true, data: {}}
+            end
+        end
+    end
+end
+
+@enduml

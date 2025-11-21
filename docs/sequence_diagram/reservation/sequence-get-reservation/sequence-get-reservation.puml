@@ -1,0 +1,35 @@
+@startuml Get Single Reservation (GET)
+
+header Restaurant Reservation System Sequence Diagram
+footer Page %page% of %lastpage%
+title "Get Single Reservation (GET)"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:reservations" as routerReservations
+participant "<<middleware>>\n:auth" as middlewareAuth
+participant "<<controllers>>\n:reservations" as controllersReservations
+participant "<<model>>\n:Reservation" as modelReservation
+database "<<MongoDB>>\n:reservations" as ReservationsDatabase
+
+client->server ++:req.get('/api/v1/reservations/:id')\nAuthorization: Bearer <token>
+server->routerReservations ++:app.use('/api/v1/reservations',reservations)
+routerReservations -> middlewareAuth ++:protect()
+middlewareAuth->middlewareAuth:verify token
+alt token invalid
+    middlewareAuth->client --:401 - Not authorized
+else token valid
+    middlewareAuth->routerReservations --:next()
+    routerReservations -> controllersReservations ++:getReservation()
+    controllersReservations->modelReservation ++:findById(req.params.id).populate('restaurant')
+    modelReservation ->ReservationsDatabase ++: ReservationSchema
+    ReservationsDatabase --> modelReservation --: reservation
+    controllersReservations <-- modelReservation --:reservation
+    alt reservation not found
+        controllersReservations->client --:400 - Reservation not found
+    else reservation found
+        controllersReservations->client --:200 - Reservation retrieved\n{success: true, data: reservation}
+    end
+end
+
+@enduml

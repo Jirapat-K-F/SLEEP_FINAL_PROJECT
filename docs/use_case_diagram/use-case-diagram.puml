@@ -1,0 +1,43 @@
+@startuml UseCaseDiagram
+!define RECTANGLE class
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam actor {
+    BackgroundColor lightblue
+    BorderColor black
+}
+
+actor User
+actor Admin
+
+rectangle "Restaurant Reservation System" {
+    User --> (Register)
+    User --> (Login)
+    User --> (View Profile)
+    User --> (Logout)
+    User --> (Forgot Password)
+    User --> (Reset Password)
+    User --> (Make Reservation)
+    User --> (View Reservations)
+    User --> (Cancel Reservation)
+    User --> (View Restaurants)
+    
+    Admin --> (Login)
+    Admin --> (View Profile)
+    Admin --> (Logout)
+    Admin --> (Manage Users)
+    Admin --> (Manage Restaurants)
+    Admin --> (Manage Reservations)
+    Admin --> (View All Reservations)
+}
+
+(Reset Password) ..> (Forgot Password) : extends
+(View Reservations) ..> (Login) : requires
+(Make Reservation) ..> (Login) : requires
+(Cancel Reservation) ..> (Login) : requires
+(Manage Users) ..> (Login) : requires
+(Manage Restaurants) ..> (Login) : requires
+(Manage Reservations) ..> (Login) : requires
+
+@enduml

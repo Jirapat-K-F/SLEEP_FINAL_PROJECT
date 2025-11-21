@@ -7,6 +7,11 @@ const UserSchema = new monngoose.Schema({
         type: String,
         required: [true, 'Please add a name'],
     },
+    telephone: {
+        type: String,
+        required: [true, 'Please add a telephone number'],
+        maxlength: [10, 'Telephone number can not be more than 10 characters']
+    },
     email: {
         type: String,
         required: [true, 'Please add an email'],
@@ -38,8 +43,15 @@ const UserSchema = new monngoose.Schema({
 
 // Encrypt password using bcrypt
 UserSchema.pre('save', async function(next) {
+    if (!this.isModified('password')) {
+        return next();
+    }
+    if (!this.password) {
+        return next(new Error('Password is required'));
+    }
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
+    next();
 });
 
 // Sign JWT and return

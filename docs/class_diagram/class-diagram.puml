@@ -1,0 +1,129 @@
+@startuml RestaurantReservationSystem
+left to right direction
+package "Restaurant Reservation System"{
+    class "<<Application>>\nRestaurantService" as RestaurantService{}
+
+    ' Authentication Resources
+    class "<<Resource>>\nAuth" as ResourceAuth{
+        <<POST>> +register():User
+        <<POST>> +login():User
+        <<GET>> +getMe():User
+        <<GET>> +logout():void
+        <<POST>> +forgotPassword():void
+        <<PUT>> +resetPassword():User
+    }
+
+    ' Restaurant Resources
+    class "<<Resource>>\nRestaurants" as ResourceRestaurants{
+        <<GET>> +getRestaurants():Restaurant[]
+        <<POST>> +createRestaurant():Restaurant
+        <<GET>> +searchRestaurants():Restaurant[]
+        <<GET>> +getFilterOptions():FilterOptions
+    }
+
+    class "<<Resource>>\nRestaurant" as ResourceRestaurant {
+        <<GET>> +getRestaurant():Restaurant
+        <<PUT>> +updateRestaurant():Restaurant
+        <<DELETE>> +deleteRestaurant():void
+    }
+
+    ' Reservation Resources
+    class "<<Resource>>\nReservations" as ResourceReservations{
+        <<GET>> +getReservations():Reservation[]
+        <<POST>> +addReservation():Reservation
+    }
+
+    class "<<Resource>>\nReservation" as ResourceReservation {
+        <<GET>> +getReservation():Reservation
+        <<PUT>> +updateReservation():Reservation
+        <<DELETE>> +deleteReservation():void
+    }
+
+    ' Nested Reservation Resources
+    class "<<Resource>>\nRestaurantReservations" as ResourceRestaurantReservations{
+        <<GET>> +getReservations():Reservation[]
+        <<POST>> +addReservation():Reservation
+    }
+
+    ' Representation Classes
+    class "<<Representation>>\nUser" as RepresentationUser {
+        -_id: ObjectId
+        -name: String
+        -email: String
+        -telephone: String
+        -password: String
+        -role: String
+        -resetPasswordToken: String
+        -resetPasswordExpire: Date
+        -createdAt: Date
+        +getSignedJwtToken(): String
+        +matchPassword(): Boolean
+    }
+
+    class "<<Representation>>\nRestaurant" as RepresentationRestaurant {
+        -_id: ObjectId
+        -name: String
+        -address: String
+        -district: String
+        -province: String
+        -postalcode: String
+        -tel: String
+        -region: String
+        -openTime: String
+        -closeTime: String
+        -createdAt: Date
+    }
+
+    class "<<Representation>>\nReservation" as RepresentationReservation {
+        -_id: ObjectId
+        -reserveDate: Date
+        -numberOfGuests: Number
+        -user: ObjectId
+        -restaurant: ObjectId
+        -createdAt: Date
+    }
+
+    class "<<Representation>>\nFilterOptions" as RepresentationFilterOptions {
+        -districts: String[]
+        -provinces: String[]
+        -regions: String[]
+    }
+
+    ' Security Components
+    class "<<Middleware>>\nAuthMiddleware" as AuthMiddleware {
+        +protect(): middleware
+        +authorize(): middleware
+    }
+
+}
+
+' Path Relationships
+RestaurantService ..> ResourceAuth:"/auth\n<<Path>>"
+RestaurantService ..> ResourceRestaurants:"/restaurants\n<<Path>>"
+RestaurantService ..> ResourceReservations:"/reservations\n<<Path>>"
+
+ResourceRestaurants ..> ResourceRestaurant: "/{restaurantId}\n<<Path>>"
+ResourceRestaurants ..> ResourceRestaurantReservations: "/{restaurantId}/reservations\n<<Path>>"
+ResourceReservations ..> ResourceReservation: "/{reservationId}\n<<Path>>"
+
+' Representation Usage
+ResourceAuth ..> RepresentationUser: "<<use>>"
+ResourceRestaurants ..> RepresentationRestaurant: "<<use>>"
+ResourceRestaurant ..> RepresentationRestaurant: "<<use>>"
+ResourceRestaurants ..> RepresentationFilterOptions: "<<use>>"
+ResourceReservations ..> RepresentationReservation: "<<use>>"
+ResourceReservation ..> RepresentationReservation: "<<use>>"
+ResourceRestaurantReservations ..> RepresentationReservation: "<<use>>"
+
+' Security Dependencies
+ResourceRestaurants ..> AuthMiddleware: "<<protect>>"
+ResourceRestaurant ..> AuthMiddleware: "<<protect>>"
+ResourceReservations ..> AuthMiddleware: "<<protect>>"
+ResourceReservation ..> AuthMiddleware: "<<protect>>"
+ResourceRestaurantReservations ..> AuthMiddleware: "<<protect>>"
+
+' Data Relationships
+RepresentationReservation --> RepresentationUser: "user"
+RepresentationReservation --> RepresentationRestaurant: "restaurant"
+
+@enduml
