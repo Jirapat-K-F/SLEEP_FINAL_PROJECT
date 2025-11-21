@@ -9,40 +9,55 @@ participant "Auth Route" as Route
 participant "Auth Controller" as Controller
 participant "User Model" as Model
 participant "Database" as DB
+participant "bcrypt" as Bcrypt
 participant "JWT Service" as JWT
 
-User -> Route: POST /api/auth/register\n{name, email, telephone, password, role}
+User -> Route: POST /api/v1/auth/register\n{name, email, telephone, password, role}
 Route -> Controller: register(req, res, next)
 
+Controller -> Controller: console.log(req.body)
 Controller -> Controller: validate input fields\n(name, email, telephone, password)
 
 alt missing required fields
-    Controller -> User: 400 - Missing required fields
+    Controller -> User: 400 - Please provide all required fields:\nname, email, telephone, and password
 else all fields present
-    Controller -> Controller: validate telephone format\n(Thai format: 0XXXXXXXXX)
+    Controller -> Model: findOne({email})
+    Model -> DB: query existing user by email
+    DB -> Model: return result
+    Model -> Controller: existing user or null
     
-    alt invalid telephone format
-        Controller -> User: 400 - Invalid telephone format
-    else valid telephone format
-        Controller -> Model: findOne({email})
-        Model -> DB: query existing user
-        DB -> Model: return result
-        Model -> Controller: existing user or null
+    alt user already exists
+        Controller -> User: 400 - User with this email already exists
+    else user doesn't exist
+        Controller -> Model: create({name, email, telephone, password, role})
+        Model -> Bcrypt: hash password (pre-save middleware)
+        Note over Model: bcrypt.genSalt(10) then\nbcrypt.hash(password, salt)
+        Bcrypt -> Model: hashed password
+        Model -> DB: save new user with hashed password
+        DB -> Model: return saved user
+        Model -> Controller: user object
+        Controller -> Controller: sendTokenResponse(user, 200, res)
         
-        alt user already exists
-            Controller -> User: 400 - User already exists
-        else user doesn't exist
-            Controller -> Model: create({name, email, telephone, password, role})
-            Model -> Model: hash password (bcrypt)
-            Model -> DB: save new user
-            DB -> Model: return saved user
-            Model -> Controller: user object
-            Controller -> JWT: user.getSignedJwtToken()
-            JWT -> Controller: JWT token
-            Controller -> Controller: set cookie with token
-            Controller -> User: 200 - Registration successful\n{success: true, token}
-        end
+        Controller -> JWT: user.getSignedJwtToken()
+        JWT -> JWT: jwt.sign({id: user._id}, JWT_SECRET, {expiresIn})
+        JWT -> Controller: JWT token
+        
+        Controller -> Controller: calculate cookie expiration\n(JWT_COOKIE_EXPIRE || 30 days)
+        Controller -> Controller: set cookie options\n{expires, httpOnly, secure if production}
+        
+        Controller -> User: 200 - Registration successful\nSet-Cookie: token=jwt\n{success: true, token}
     end
+end
+
+' Error Handling
+note over Controller : "Catch block handles:\n- ValidationError\n- Duplicate key error (11000)\n- General server errors"
+
+alt ValidationError
+    Controller -> User: 400 - Validation error messages
+else Duplicate key error (code 11000)
+    Controller -> User: 400 - {field} already exists
+else General error
+    Controller -> User: 500 - Server error during registration
 end
 
 @enduml
