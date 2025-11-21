@@ -1,4 +1,4 @@
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
 // Create Schema
 const RestaurantSchema = new mongoose.Schema(
     {
@@ -33,12 +33,34 @@ const RestaurantSchema = new mongoose.Schema(
             type: String,
             required: [true, "Please add a region"],
         },
+        openTime: {
+            type: String,
+            default: "09:00", // Default opening time
+            required: [true, "Please add opening time"],
+            validate: {
+                validator: function (v) {
+                    return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v);
+                },
+                message: "Please provide valid time format (HH:MM)",
+            },
+        },
+        closeTime: {
+            type: String,
+            default: "22:00", // Default closing time
+            required: [true, "Please add closing time"],
+            validate: {
+                validator: function (v) {
+                    return /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(v);
+                },
+                message: "Please provide valid time format (HH:MM)",
+            },
+        },
     },
     {
         toJSON: { virtuals: true },
         toObject: { virtuals: true },
     }
-)
+);
 
 // Reverse populate with virtuals
 RestaurantSchema.virtual("reservations", {
@@ -46,6 +68,6 @@ RestaurantSchema.virtual("reservations", {
     localField: "_id",
     foreignField: "restaurant",
     justOne: false,
-})
+});
 
-module.exports = mongoose.model("Restaurant", RestaurantSchema)
+module.exports = mongoose.model("Restaurant", RestaurantSchema);
