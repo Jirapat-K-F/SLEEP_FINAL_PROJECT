@@ -58,6 +58,28 @@ exports.getReservations = async (req, res, next) => {
             }
         });
 
+        // Fix the query structure - convert string-based MongoDB operators to proper object structure
+        const properQuery = {};
+        Object.keys(parsedQuery).forEach(key => {
+            if (key.includes('[$') && key.includes(']')) {
+                // Extract field name and operator
+                const fieldMatch = key.match(/^(.+)\[\$(.+)\]$/);
+                if (fieldMatch) {
+                    const fieldName = fieldMatch[1];
+                    const operator = `$${fieldMatch[2]}`;
+                    
+                    if (!properQuery[fieldName]) {
+                        properQuery[fieldName] = {};
+                    }
+                    properQuery[fieldName][operator] = parsedQuery[key];
+                }
+            } else {
+                properQuery[key] = parsedQuery[key];
+            }
+        });
+
+        parsedQuery = properQuery;
+        console.log(parsedQuery);
         //General users can see only their Reservations
         if (req.user.role !== "admin") {
             baseQuery = { user: req.user.id, ...parsedQuery };
@@ -73,11 +95,7 @@ exports.getReservations = async (req, res, next) => {
         query = Reservation.find(baseQuery).populate({
             path: "restaurant",
             select: "name province tel address district region",
-        }).populate({
-            path: "user",
-            select: "name email telephone",
-        });
-
+        })
         //Select Fields
         if (req.query.select) {
             const fields = req.query.select.split(",").join(" ");
