@@ -4,68 +4,76 @@ const Reserve = require("../models/Reservation")
 //@route GET /api/v1/restaurants
 //@access Public
 exports.getRestaurants = async (req, res, next) => {
-    try {
-        let query
-        const reqQuery = { ...req.query }
-        const removeFields = ["select", "sort", "page", "limit"]
-        removeFields.forEach((param) => delete reqQuery[param])
-        console.log(reqQuery)
-        let queryStr = JSON.stringify(req.query)
-        queryStr = queryStr.replace(
-            /\b(gt|gte|lt|lte|in)\b/g,
-            (match) => `$${match}`
-        )
-        query = Restaurant.find(JSON.parse(queryStr)).populate("reservations")
-        const restaurant = await Restaurant.findById(req.params.restaurantId)
-        //Select Fields
-        if (req.query.select) {
-            const fields = req.query.select.split(",").join(" ")
-            query = query.select(fields)
-        }
-        //Sort
-        if (req.query.sort) {
-            const sortBy = req.query.sort.split(",").join(" ")
-            query = query.sort(sortBy)
-        } else {
-            query = query.sort("-createdAt")
-        }
-        //Pagination
-        const page = parseInt(req.query.page, 10) || 1
-        const limit = parseInt(req.query.limit, 10) || 25
-        const startIndex = (page - 1) * limit
+    let query;
 
-        const total = await Restaurant.countDocuments()
-        query = query.skip(startIndex).limit(limit)
-        //Executing query
-        const restaurants = await query
-        //Pagination result
-        const pagination = {}
-        if (req.query.select) {
+    // Copy req.query
+    const reqQuery = { ...req.query };
+
+    // Fields to exclude
+    const removeFields = ["select", "sort", "page", "limit"];
+
+    // Loop over removeFields and delete them from reqQuery
+    removeFields.forEach((param) => delete reqQuery[param]);
+    console.log(reqQuery);
+
+    // Create query string
+    let queryStr = JSON.stringify(reqQuery);
+    queryStr = queryStr.replace(
+        /\b(gt|gte|lt|lte|in)\b/g,
+        (match) => `$${match}`
+    );
+
+    query = Restaurant.find(JSON.parse(queryStr)).populate("reservations");
+
+    // Select Fields
+    if (req.query.select) {
+        const fields = req.query.select.split(",").join(" ");
+        query = query.select(fields);
+    }
+
+    // Sort
+    if (req.query.sort) {
+        const sortBy = req.query.sort.split(",").join(" ");
+        query = query.sort(sortBy);
+    } else {
+        query = query.sort("-createdAt");
+    }
+
+    // Pagination
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 25;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+
+    try {
+        const total = await Restaurant.countDocuments();
+
+        query = query.skip(startIndex).limit(limit);
+
+        // Executing query
+        const restaurants = await query;
+        // Pagination result
+        const pagination = {};
+
+        if (endIndex < total) {
             pagination.next = {
                 page: page + 1,
                 limit,
-            }
+            };
         }
+
         if (startIndex > 0) {
             pagination.prev = {
                 page: page - 1,
                 limit,
-            }
+            };
         }
-        if (!restaurants) {
-            return res
-                .status(400)
-                .json({ success: false, message: "No restaurant found" })
-        }
-        // Delete all reservations related to the restaurant
-        await Reserve.deleteMany({ restaurant: req.params.restaurantId })
-        await Restaurant.deleteOne({ _id: req.params.restaurantId })
+
         res.status(200).json({
             success: true,
             count: restaurants.length,
-            pagination,
             data: restaurants,
-        })
+        });
     } catch (err) {
         res.status(400).json({ success: false })
     }
