@@ -1,0 +1,38 @@
+@startuml Create Restaurant (POST)
+
+header Restaurant Reservation System Sequence Diagram
+footer Page %page% of %lastpage%
+title "Create Restaurant (POST)"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:restaurants" as routerRestaurants
+participant "<<middleware>>\n:auth" as middlewareAuth
+participant "<<controllers>>\n:restaurants" as controllersRestaurants
+participant "<<model>>\n:Restaurant" as modelRestaurant
+database "<<MongoDB>>\n:restaurants" as RestaurantsDatabase
+
+client->server ++:req.post('/api/v1/restaurants')\nAuthorization: Bearer <token>
+server->routerRestaurants ++:app.use('/api/v1/restaurants',restaurants)
+routerRestaurants -> middlewareAuth ++:protect()
+middlewareAuth->middlewareAuth:verify token
+alt token invalid
+    middlewareAuth->client --:401 - Not authorized
+else token valid
+    middlewareAuth->routerRestaurants --:next()
+    routerRestaurants -> middlewareAuth ++:authorize('admin')
+    middlewareAuth->middlewareAuth:check user role
+    alt user not admin
+        middlewareAuth->client --:403 - Not authorized (admin only)
+    else user is admin
+        middlewareAuth->routerRestaurants --:next()
+        routerRestaurants -> controllersRestaurants ++:createRestaurants()
+        controllersRestaurants->modelRestaurant ++:create(req.body)
+        modelRestaurant ->RestaurantsDatabase ++: RestaurantSchema
+        RestaurantsDatabase --> modelRestaurant --: restaurant
+        controllersRestaurants <-- modelRestaurant --:restaurant
+        controllersRestaurants->client --:201 - Restaurant created\n{success: true, data: restaurant}
+    end
+end
+
+@enduml
