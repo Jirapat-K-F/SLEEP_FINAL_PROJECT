@@ -1,0 +1,27 @@
+@startuml Get Single Restaurant (GET)
+
+header Restaurant Reservation System Sequence Diagram
+footer Page %page% of %lastpage%
+title "Get Single Restaurant (GET)"
+
+participant "Client" as client
+participant "<<javaScript>>\n:server" as server
+participant "<<router>>\n:restaurants" as routerRestaurants
+participant "<<controllers>>\n:restaurants" as controllersRestaurants
+participant "<<model>>\n:Restaurant" as modelRestaurant
+database "<<MongoDB>>\n:restaurants" as RestaurantsDatabase
+
+client->server ++:req.get('/api/v1/restaurants/:id')
+server->routerRestaurants ++:app.use('/api/v1/restaurants',restaurants)
+routerRestaurants -> controllersRestaurants ++:getRestaurant()
+controllersRestaurants->modelRestaurant ++:findById(req.params.id)
+modelRestaurant ->RestaurantsDatabase ++: RestaurantSchema
+RestaurantsDatabase --> modelRestaurant --: restaurant
+controllersRestaurants <-- modelRestaurant --:restaurant
+alt restaurant not found
+    controllersRestaurants->client --:400 - Restaurant not found
+else restaurant found
+    controllersRestaurants->client --:200 - Restaurant retrieved\n{success: true, data: restaurant}
+end
+
+@enduml
