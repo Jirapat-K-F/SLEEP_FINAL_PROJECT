@@ -1,0 +1,85 @@
+@startuml ClassDiagram
+skinparam class {
+    BackgroundColor lightyellow
+    BorderColor black
+    ArrowColor black
+}
+
+class User {
+    -_id: ObjectId
+    -name: String {required}
+    -email: String {required, unique}
+    -telephone: String {required}
+    -password: String {required, min: 6}
+    -role: String {default: "user"}
+    -resetPasswordToken: String
+    -resetPasswordExpire: Date
+    -createdAt: Date
+    +getSignedJwtToken(): String
+    +matchPassword(password: String): Boolean
+}
+
+class Restaurant {
+    -_id: ObjectId
+    -name: String {required}
+    -address: String {required}
+    -district: String {required}
+    -province: String {required}
+    -postalcode: String {required, length: 5}
+    -telephone: String {required}
+    -picture: String
+    +toJSON(): Object
+}
+
+class Reservation {
+    -_id: ObjectId
+    -reserveDate: Date {required}
+    -numberOfGuests: Number {required}
+    -user: ObjectId {ref: User}
+    -restaurant: ObjectId {ref: Restaurant}
+    -createdAt: Date
+}
+
+class AuthController {
+    +register(req, res, next): void
+    +login(req, res, next): void
+    +getMe(req, res, next): void
+    +logout(req, res, next): void
+    +forgotPassword(req, res, next): void
+    +resetPassword(req, res, next): void
+}
+
+class RestaurantController {
+    +getRestaurants(req, res, next): void
+    +getRestaurant(req, res, next): void
+    +createRestaurant(req, res, next): void
+    +updateRestaurant(req, res, next): void
+    +deleteRestaurant(req, res, next): void
+}
+
+class ReservationController {
+    +getReservations(req, res, next): void
+    +getReservation(req, res, next): void
+    +addReservation(req, res, next): void
+    +updateReservation(req, res, next): void
+    +deleteReservation(req, res, next): void
+}
+
+class AuthMiddleware {
+    +protect(req, res, next): void
+    +authorize(...roles): function
+}
+
+' Relationships
+User ||--o{ Reservation : makes
+Restaurant ||--o{ Reservation : has
+AuthController --> User : manages
+RestaurantController --> Restaurant : manages
+ReservationController --> Reservation : manages
+ReservationController --> User : verifies
+ReservationController --> Restaurant : checks
+AuthController --> AuthMiddleware : uses
+RestaurantController --> AuthMiddleware : uses
+ReservationController --> AuthMiddleware : uses
+
+@enduml

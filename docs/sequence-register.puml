@@ -1,0 +1,48 @@
+@startuml UserRegistrationSequence
+skinparam participant {
+    BackgroundColor lightgreen
+    BorderColor black
+}
+
+actor User
+participant "Auth Route" as Route
+participant "Auth Controller" as Controller
+participant "User Model" as Model
+participant "Database" as DB
+participant "JWT Service" as JWT
+
+User -> Route: POST /api/auth/register\n{name, email, telephone, password, role}
+Route -> Controller: register(req, res, next)
+
+Controller -> Controller: validate input fields\n(name, email, telephone, password)
+
+alt missing required fields
+    Controller -> User: 400 - Missing required fields
+else all fields present
+    Controller -> Controller: validate telephone format\n(Thai format: 0XXXXXXXXX)
+    
+    alt invalid telephone format
+        Controller -> User: 400 - Invalid telephone format
+    else valid telephone format
+        Controller -> Model: findOne({email})
+        Model -> DB: query existing user
+        DB -> Model: return result
+        Model -> Controller: existing user or null
+        
+        alt user already exists
+            Controller -> User: 400 - User already exists
+        else user doesn't exist
+            Controller -> Model: create({name, email, telephone, password, role})
+            Model -> Model: hash password (bcrypt)
+            Model -> DB: save new user
+            DB -> Model: return saved user
+            Model -> Controller: user object
+            Controller -> JWT: user.getSignedJwtToken()
+            JWT -> Controller: JWT token
+            Controller -> Controller: set cookie with token
+            Controller -> User: 200 - Registration successful\n{success: true, token}
+        end
+    end
+end
+
+@enduml
