@@ -106,7 +106,7 @@ exports.forgotPassword = async (req, res, next) => {
 
     // ส่งอีเมลจริงด้วย nodemailer
     const baseUrl = `http://localhost:${process.env.PORT || "5000"}`;
-    const resetUrl = `${baseUrl}/api/auth/resetpassword/${resetToken}`;
+    const resetUrl = `${baseUrl}/api/v1/auth/resetpassword/${resetToken}`;
     const message = `คุณได้รับคำขอรีเซ็ตรหัสผ่าน กรุณาคลิกลิงก์นี้เพื่อรีเซ็ตรหัสผ่าน: ${resetUrl}`;
     try {
       await sendEmail({
